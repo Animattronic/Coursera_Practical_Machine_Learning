@@ -1,0 +1,113 @@
+---
+title: "Excercise quality recognition"
+author: "Filip Wójcik"
+date: "Friday, June 19, 2015"
+output: html_document
+---
+
+```{r library_imports, message=FALSE, warning=FALSE, echo=FALSE}
+library(caret)
+library(randomForest)
+library(C50)
+library(doParallel)
+```
+
+## Introduction
+
+The following project's goal is to predict the quality of excercise performed by the subject.The input data are the readings from different sensors placed on the subjects bodies.
+The data consist of 160 variables, mosdt of which are numeric. The class labels are letters (A, B... E) desribing the quality of the excercise performed.
+
+### Data preprocessing
+
+```{r data_loading}
+setwd("d:/projects/R/data_science/practical_machine_learning/")
+data <- read.table("pml-training.csv", header=TRUE, sep=",")
+test.data <- read.table("pml-testing.csv", header=TRUE, sep=",")
+
+```
+
+### Features selection
+
+Before analysis was performed, some basic data preprocessing was conducted. Some of the 160 variables were removed as inconclusive. Below you can find a justification of each of them:
+
+1. X - describes the subject number. It is irrelevant for predicting future subjects outcomes
+2. user_name - same reason as above
+3. raw_timestamp_part_1 - timestamp is irrelevant for predicting future outcomes, because it is a unique value, that will never be the same again
+4. raw_timestamp_part_2 - same reason as above
+5. cvtd_timestamp - same reason as above
+6. new_window - experiment authors used the time-windows approach (windows of 0.5 to 2.5 seconds). It has been found during the project evaluation, that this variable is irrelevant for future prediction.
+7. num_window - same reason as above
+8. classe - it it the column with response (dependent) variable. It will be treated separaterly and will be passed as additional argument, so it can be removed from the training data
+
+```{r relevant_columns_selection}
+relevant.cols <- colnames(data)
+relevant.cols <- relevant.cols[!(relevant.cols %in% c("classe", "user_name", "X", "raw_timestamp_part_1",  "raw_timestamp_part_2", "cvtd_timestamp", "new_window", "num_window"))]
+```
+
+### Removing na values
+
+In many of the selected columns there are NA or '' values. Below is the function for finding and eliminating columns where NA count is bigger than 0.6. Later on, the statistic for removed columns is presented:
+
+```{r remove_columns_with_majority_empty}
+filled.cols <- c()
+empty.cols.stats <- data.frame(colname=c(), empty.count=c(), empty.perc=c())
+
+for(colname in relevant.cols){
+  values <- data[, colname]
+  total.length <- length(data[,colname])
+  empty.length <- sum(is.na(values) | values == '')
+  perc.empty <- empty.length/total.length
+  if(perc.empty < 0.6){
+    filled.cols <- c(filled.cols, colname)
+  } else{
+    empty.cols.stats <- rbind(
+      empty.cols.stats, 
+      data.frame(colname=c(colname), empty.count=c(empty.length), empty.perc=c(perc.empty))
+    )
+  }
+}
+
+training.data <- data[, filled.cols]
+training.data['classe'] <- data$classe
+test.data <- test.data[,filled.cols]
+
+empty.cols.stats
+```
+
+All of the removed columns had amost 100% empty fields! So those columns were definitely irelevant for the analysis.
+
+## Performing analysis
+
+### Analysis method overview
+
+Random forests were selected as a method for building the model for this problem. Random forests are the choice mostly because their performance (similar to neural networks or support vector machines), and no need for cross-validation: all error measures are handled by the OOB-error rates.
+
+### Building the model & checking its structure
+
+```{r building_the_model}
+model <- randomForest(classe ~ ., data=training.data, ntree=250)
+```
+
+1. Model error rate per class
+
+Below is the model confusion matrix based on the OOB examples. It can serve as the error estimated per each class
+
+```{r error_confusion_matrix}
+model$confusion
+```
+
+2. Model variable importance
+
+Below is the plot showing the variable importance, estimated during model construction:
+
+```{r model_variale_importance}
+varImpPlot(model)
+```
+
+## Predictions
+
+In the project auto-grader, using test data, the model created above achieved 100% accuracy. Results of predictions can be found below:
+
+```{r predictions}
+predict(model, newdata=test.data)
+```
