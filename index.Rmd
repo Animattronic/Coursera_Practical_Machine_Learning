@@ -104,6 +104,15 @@ Below is the plot showing the variable importance, estimated during model constr
 varImpPlot(model)
 ```
 
+3. Model error rate
+
+Below the plot showing the error rate and number of trees associated with it is presented. Error rate is calculated in a per-class method (so it represents the error rate .
+
+```{r plot_error_and_trees_count}
+plot(model)
+legend("topright", colnames(model$err.rate), col=1:4, cex=0.9, fill=1:4, lty=c(1,2,3))
+```
+
 ## Predictions
 
 In the project auto-grader, using test data, the model created above achieved 100% accuracy. Results of predictions can be found below:
